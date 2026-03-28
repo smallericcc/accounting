@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>记账系统</title>
+
+    <!-- Bootstrap -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+    <!-- 自定义样式 -->
+    <style>
+        body {
+            background: linear-gradient(135deg, #74ebd5, #ACB6E5);
+            min-height: 100vh;
+        }
+        .card {
+            border-radius: 15px;
+        }
+        .income {
+            color: green;
+            font-weight: bold;
+        }
+        .expense {
+            color: red;
+            font-weight: bold;
+        }
+    </style>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body class="p-4">
+
+<div class="container">
+
+    <h1 class="text-center text-white mb-4">💰 我的记账系统</h1>
+    <h2 class="mt-4">📊 收支统计</h2>
+    <div style="width: 300px; height: 300px; margin: auto;">
+        <canvas id="myChart"></canvas>
+    </div>
+    <div class="row">
+        <!-- 左侧：表单 -->
+        <div class="col-md-4">
+            <div class="card p-3 shadow">
+                <h4>新增账单</h4>
+
+                <form id="addForm">
+                    <input class="form-control mb-2" type="number" step="0.01" id="amount" placeholder="金额" required>
+
+                    <select class="form-select mb-2" id="type" required>
+                        <option value="">选择类型</option>
+                        <option value="INCOME">收入</option>
+                        <option value="EXPENSE">支出</option>
+                    </select>
+
+                    <input class="form-control mb-2" id="category" placeholder="分类">
+                    <input class="form-control mb-3" id="note" placeholder="备注">
+
+                    <button class="btn btn-primary w-100">➕ 添加</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- 右侧：列表 -->
+        <div class="col-md-8">
+            <div class="card p-3 shadow">
+                <h4>账单列表</h4>
+
+                <table class="table table-hover">
+                    <thead>
+                    <tr>
+                        <th>金额</th>
+                        <th>类型</th>
+                        <th>分类</th>
+                        <th>备注</th>
+                        <th>时间</th>
+                        <th></th>
+                    </tr>
+                    </thead>
+                    <tbody id="recordList"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    const apiUrl = '/records';
+
+    // 加载数据
+    function loadRecords() {
+        fetch(apiUrl)
+            .then(res => res.json())
+            .then(data => {
+                const tbody = document.getElementById('recordList');
+                tbody.innerHTML = '';
+
+                data.reverse().forEach(r => {
+                    const typeClass = r.type === 'INCOME' ? 'income' : 'expense';
+
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                    <td class="${typeClass}">¥${r.amount}</td>
+                    <td>${r.type}</td>
+                    <td>${r.category}</td>
+                    <td>${r.note || ''}</td>
+                    <td>${r.date.replace('T',' ')}</td>
+                    <td>
+                        <button class="btn btn-sm btn-outline-danger" onclick="deleteRecord(${r.id})">
+                            删除
+                        </button>
+                    </td>
+                `;
+                    tbody.appendChild(tr);
+                });
+                renderChart(data);
+            });
+    }
+
+    // 新增
+    document.getElementById('addForm').addEventListener('submit', function(e){
+        e.preventDefault();
+
+        const record = {
+            amount: parseFloat(amount.value),
+            type: type.value,
+            category: category.value,
+            note: note.value
+        };
+
+        fetch(apiUrl, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(record)
+        }).then(() => {
+            this.reset();
+            loadRecords();
+        });
+    });
+
+    // 删除
+    function deleteRecord(id) {
+        if (!confirm("确定删除？")) return;
+
+        fetch(`${apiUrl}/${id}`, { method: 'DELETE' })
+            .then(() => loadRecords());
+    }
+
+    // 初始化
+    loadRecords();
+
+    function renderChart(records) {
+        let income = 0;
+        let expense = 0;
+
+        records.forEach(r => {
+            if (r.type === 'INCOME') {
+                income += r.amount;
+            } else {
+                expense += r.amount;
+            }
+        });
+
+        const ctx = document.getElementById('myChart');
+
+        new Chart(ctx, {
+            type: 'pie',
+            data: {
+                labels: ['收入', '支出'],
+                datasets: [{
+                    data: [income, expense]
+                }]
+            }
+        });
+    }
+</script>
+
+</body>
+</html>
