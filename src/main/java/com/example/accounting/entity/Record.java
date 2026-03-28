@@ -5,6 +5,10 @@ import lombok.Data;
 
 import java.time.LocalDateTime;
 
+/**
+ * ericWei
+ */
+
 @Data
 @Entity
 public class Record {
